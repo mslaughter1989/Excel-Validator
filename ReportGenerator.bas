@@ -62,7 +62,7 @@ Private Function BuildReportContent(oResult As ValidationResult, oFileInfo As Fi
         Dim i As Long
         For i = 1 To oResult.Errors.Count
             Dim oError As ValidationError
-            Set oError = oResult.Errors.item(i)
+            Set oError = oResult.Errors.Item(i)
             
             sContent = sContent & "Row " & oError.RowNumber & ", Field '" & oError.FieldName & "': " & oError.ErrorMessage & vbCrLf
         Next i
@@ -75,7 +75,7 @@ Private Function BuildReportContent(oResult As ValidationResult, oFileInfo As Fi
         
         For i = 1 To oResult.Warnings.Count
             Dim oWarning As ValidationError
-            Set oWarning = oResult.Warnings.item(i)
+            Set oWarning = oResult.Warnings.Item(i)
             
             sContent = sContent & "Row " & oWarning.RowNumber & ", Field '" & oWarning.FieldName & "': " & oWarning.ErrorMessage & vbCrLf
         Next i

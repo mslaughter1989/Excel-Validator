@@ -1,4 +1,187 @@
 Attribute VB_Name = "FileValidationMain"
+Option Explicit
+
+' Main entry point for file validation system
+Public Sub StartFileValidation()
+    Const sPROC_NAME As String = "StartFileValidation"
+    
+    On Error GoTo ErrorHandler
+    
+    ' Initialize application settings
+    Call InitializeApplication
+    
+    ' Show file selection dialog
+    Dim sSelectedFile As String
+    sSelectedFile = SelectValidationFile()
+    
+    If sSelectedFile = "" Then
+        MsgBox "No file selected. Validation cancelled.", vbInformation, "File Validation"
+        GoTo Cleanup
+    End If
+    
+    ' Start validation process
+    Dim oResult As ValidationResult
+    Set oResult = ValidateSelectedFile(sSelectedFile)
+    
+    ' Display results
+    Call DisplayValidationResults(oResult)
+    
+Cleanup:
+    Call RestoreApplication
+    Exit Sub
+    
+ErrorHandler:
+    Call RestoreApplication
+    Call ErrorHandler_Central(sPROC_NAME, err.Number, err.description)
+End Sub
+
+Private Function ValidateSelectedFile(sFilePath As String) As ValidationResult
+    Const sPROC_NAME As String = "ValidateSelectedFile"
+    
+    Dim oResult As ValidationResult
+    Set oResult = New ValidationResult
+    
+    On Error GoTo ErrorHandler
+    
+    ' Show progress form
+    Load frmProgress
+    frmProgress.Show vbModeless
+    
+    ' Stage 1: Extract filename and match pattern
+    Call frmProgress.UpdateProgress("Analyzing filename pattern...", 5)
+    
+    Dim sFileName As String
+    sFileName = GetFileNameFromPath(sFilePath)
+    
+    Dim oFileInfo As FileInfo
+    oFileInfo = MatchFilenamePattern(sFileName)
+    
+    If Not oFileInfo.IsValid Then
+        oResult.AddError 0, "Filename", "No matching pattern found for filename: " & sFileName
+        GoTo Cleanup
+    End If
+    
+    ' Stage 2: Get column mapping for FileType
+    Call frmProgress.UpdateProgress("Loading column mappings...", 15)
+    
+    Dim oMapping As ColumnMapping
+    oMapping = GetColumnMapping(oFileInfo.FileType)
+    
+    If oMapping.FileType = "" Then
+        oResult.AddError 0, "FileType", "No column mapping found for FileType: " & oFileInfo.FileType
+        GoTo Cleanup
+    End If
+    
+    ' Stage 3: Load validation rules
+    Call frmProgress.UpdateProgress("Loading validation rules...", 25)
+    
+    Dim colRules As Collection
+    Set colRules = LoadValidationRules()
+    
+    ' Stage 4: Read and parse CSV file
+    Call frmProgress.UpdateProgress("Reading CSV file...", 35)
+    
+    Dim vCSVData As Variant
+    vCSVData = ReadCSVToArray(sFilePath)
+    
+    If IsEmpty(vCSVData) Then
+        oResult.AddError 0, "File", "Failed to read CSV file or file is empty"
+        GoTo Cleanup
+    End If
+    
+    ' Stage 5: Apply validation rules
+    Call frmProgress.UpdateProgress("Validating data...", 50)
+    
+    Call ValidateCSVDataIntoResult(vCSVData, oMapping, colRules, oFileInfo, oResult)
+    
+    ' Stage 6: Generate validation report
+    Call frmProgress.UpdateProgress("Generating report...", 85)
+    
+    Dim sReportPath As String
+    sReportPath = GenerateValidationReport(oResult, oFileInfo, sFilePath)
+    oResult.ReportPath = sReportPath
+    
+    Call frmProgress.UpdateProgress("Validation complete!", 100)
+    
+Cleanup:
+    On Error Resume Next
+    Unload frmProgress
+    On Error GoTo 0
+    Set ValidateSelectedFile = oResult
+    Exit Function
+    
+ErrorHandler:
+    On Error Resume Next
+    Unload frmProgress
+    On Error GoTo 0
+    Call ErrorHandler_Central(sPROC_NAME, err.Number, err.description, sFilePath)
+    If oResult Is Nothing Then Set oResult = New ValidationResult
+    oResult.AddError 0, "System", "Validation failed due to system error: " & err.description
+    GoTo Cleanup
+End Function
+
+Private Sub ValidateCSVDataIntoResult(vData As Variant, oMapping As ColumnMapping, colRules As Collection, oFileInfo As FileInfo, oResult As ValidationResult)
+    Dim lRow As Long
+    Dim lTotalRows As Long
+    Dim colCMIDs As Collection
+    Set colCMIDs = New Collection
+    
+    lTotalRows = UBound(vData, 1)
+    oResult.TotalRecords = lTotalRows - 1 ' Subtract header row
+    
+    ' Validate each data row (skip header)
+    For lRow = 2 To lTotalRows
+        ' Update progress occasionally
+        If lRow Mod 1000 = 0 Then
+            Dim lPercent As Long
+            lPercent = 50 + ((lRow / lTotalRows) * 30) ' Progress from 50% to 80%
+            Call frmProgress.UpdateProgress("Validating record " & (lRow - 1) & " of " & (lTotalRows - 1), lPercent)
+        End If
+        
+        ' Validate individual fields
+        Call ValidateRowFields(vData, lRow, oMapping, colRules, oResult)
+        
+        ' Check CMID uniqueness
+        If oMapping.CMID > 0 And oMapping.CMID <= UBound(vData, 2) Then
+            Dim sCMID As String
+            sCMID = CStr(vData(lRow, oMapping.CMID))
+            
+            If sCMID <> "" Then
+                On Error Resume Next
+                colCMIDs.Add sCMID, sCMID
+                If err.Number <> 0 Then
+                    ' Duplicate found
+                    oResult.AddError lRow - 1, "CMID", "Duplicate CMID found: " & sCMID
+                    err.Clear
+                End If
+                On Error GoTo 0
+            End If
+        End If
+        
+        ' Validate GID matches expected
+        If oMapping.GID > 0 And oMapping.GID <= UBound(vData, 2) Then
+            Dim sGID As String
+            sGID = CStr(vData(lRow, oMapping.GID))
+            
+            If sGID <> oFileInfo.GroupID Then
+                oResult.AddError lRow - 1, "GID", "GID mismatch. Expected: " & oFileInfo.GroupID & ", Found: " & sGID
+            End If
+        End If
+    Next lRow
+    
+    oResult.ValidationComplete = True
+End Sub
+
+Private Sub InitializeApplication()
+    ' Store current settings
+    With Application
+        .ScreenUpdating = False
+        .DisplayAlerts = False
+        .EnableEvents = False
+        .Calculation = xlCalculationManual
+    End With
+End Sub
+
 Private Sub RestoreApplication()
     ' Restore Excel settings
     With Application
@@ -105,20 +288,41 @@ Private Sub ValidateField(vFieldValue As Variant, sFieldType As String, lRowNumb
 End Sub
 
 Private Function GetValidationRule(colRules As Collection, sFieldType As String) As ValidationRule
-    Dim i As Long
     Dim oRule As ValidationRule
-    
-    ' Search through collection for matching field type
-    For i = 1 To colRules.Count
-        oRule = colRules(i)
-        If UCase(oRule.FieldType) = UCase(sFieldType) Then
-            GetValidationRule = oRule
-            Exit Function
-        End If
-    Next i
-    
-    ' Return empty rule if not found
     Dim emptyRule As ValidationRule
+    Dim sRuleData As String
+    Dim vParts As Variant
+    
+    ' Initialize empty rule
+    emptyRule.FieldType = ""
+    emptyRule.Required = False
+    emptyRule.MaxLength = 0
+    emptyRule.MinLength = 0
+    emptyRule.FormatPattern = ""
+    emptyRule.CustomFunction = ""
+    
+    On Error GoTo NotFound
+    
+    ' Try to get the rule data string from collection using the field type as key
+    sRuleData = colRules.Item(sFieldType)
+    
+    ' Parse the delimited string back into ValidationRule Type
+    vParts = Split(sRuleData, "|")
+    
+    If UBound(vParts) >= 5 Then
+        oRule.FieldType = vParts(0)
+        oRule.Required = (UCase(vParts(1)) = "TRUE")
+        oRule.MaxLength = Val(vParts(2))
+        oRule.MinLength = Val(vParts(3))
+        oRule.FormatPattern = vParts(4)
+        oRule.CustomFunction = vParts(5)
+        
+        GetValidationRule = oRule
+        Exit Function
+    End If
+    
+NotFound:
+    ' Return empty rule if not found or error
     GetValidationRule = emptyRule
 End Function
 

@@ -9,7 +9,6 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Explicit
 
-' Public properties to store error information
 Public RowNumber As Long
 Public FieldName As String
 Public ErrorMessage As String
@@ -20,7 +19,6 @@ Public ActualValue As String        ' The value that caused the error
 Public ExpectedFormat As String     ' What was expected
 Public ValidationRule As String     ' Which rule failed
 
-' Initialize with default values
 Private Sub Class_Initialize()
     RowNumber = 0
     FieldName = ""
@@ -33,7 +31,6 @@ Private Sub Class_Initialize()
     ValidationRule = ""
 End Sub
 
-' Method: GetFormattedError - Return formatted error message
 Public Function GetFormattedError() As String
     Dim sFormatted As String
     
@@ -60,11 +57,9 @@ Public Function GetFormattedError() As String
     GetFormattedError = sFormatted
 End Function
 
-' Method: GetCSVFormat - Return error in CSV format for reporting
 Public Function GetCSVFormat() As String
     Dim sCSV As String
     
-    ' Format: RowNumber,FieldName,ErrorType,Severity,ErrorMessage,ActualValue,ExpectedFormat
     sCSV = RowNumber & "," & _
            """" & FieldName & """," & _
            """" & ErrorType & """," & _
@@ -76,12 +71,10 @@ Public Function GetCSVFormat() As String
     GetCSVFormat = sCSV
 End Function
 
-' Method: IsHighPriority - Check if this is a high priority error
 Public Function IsHighPriority() As Boolean
     IsHighPriority = (UCase(Severity) = "HIGH" Or UCase(ErrorType) = "ERROR")
 End Function
 
-' Method: GetSeverityLevel - Return numeric severity (for sorting)
 Public Function GetSeverityLevel() As Long
     Select Case UCase(Severity)
         Case "HIGH"
@@ -91,16 +84,14 @@ Public Function GetSeverityLevel() As Long
         Case "LOW"
             GetSeverityLevel = 1
         Case Else
-            GetSeverityLevel = 2 ' Default to medium
+            GetSeverityLevel = 2
     End Select
     
-    ' Errors are always higher priority than warnings
     If UCase(ErrorType) = "ERROR" Then
         GetSeverityLevel = GetSeverityLevel + 10
     End If
 End Function
 
-' Method: SetErrorDetails - Convenient way to set all error details at once
 Public Sub SetErrorDetails(lRow As Long, sField As String, sMessage As String, _
                            Optional sType As String = "Error", _
                            Optional sSeverity As String = "Medium", _

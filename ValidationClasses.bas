@@ -104,10 +104,3 @@ Public Sub AddWarning(lRowNumber As Long, sFieldName As String, sWarningMessage 
     m_WarningCount = m_WarningCount + 1
 End Sub
 
-' Class Module: ValidationError
-Option Explicit
-
-Public RowNumber As Long
-Public FieldName As String
-Public ErrorMessage As String
-Public ErrorType As String

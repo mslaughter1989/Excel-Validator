@@ -103,7 +103,7 @@ Public Function ParseCSVLine(sLine As String) As Variant
             Case """"
                 If bInQuotes Then
                     ' Check for escaped quote
-                    If lPos < Len(sLine) AndAlso Mid(sLine, lPos + 1, 1) = """" Then
+                    If lPos < Len(sLine) And Mid(sLine, lPos + 1, 1) = """" Then
                         sCurrentField = sCurrentField & """"
                         lPos = lPos + 1 ' Skip next quote
                     Else

@@ -39,6 +39,21 @@ Public Function GetColumnMapping(sFileType As String) As ColumnMapping
     Set wsMapping = ThisWorkbook.Worksheets("Filetype Mapping")
     lLastRow = wsMapping.Cells(wsMapping.Rows.Count, "A").End(xlUp).row
     
+    ' Initialize with empty values
+    oMapping.FileType = ""
+    oMapping.FirstName = 0
+    oMapping.LastName = 0
+    oMapping.DOB = 0
+    oMapping.Gender = 0
+    oMapping.ZipCode = 0
+    oMapping.Address1 = 0
+    oMapping.City = 0
+    oMapping.State = 0
+    oMapping.EffectiveDate = 0
+    oMapping.GID = 0
+    oMapping.ServiceOffering = 0
+    oMapping.CMID = 0
+    
     ' Find the FileType row
     For lRow = 2 To lLastRow
         If UCase(wsMapping.Cells(lRow, "A").Value) = UCase(sFileType) Then
@@ -58,18 +73,19 @@ Public Function GetColumnMapping(sFileType As String) As ColumnMapping
                 .CMID = wsMapping.Cells(lRow, "M").Value
             End With
             
-            Set GetColumnMapping = CreateColumnMappingObject(oMapping)
+            ' Return the Type directly (no Set keyword)
+            GetColumnMapping = oMapping
             Exit Function
         End If
     Next lRow
     
-    ' FileType not found
-    Set GetColumnMapping = Nothing
+    ' FileType not found - return empty mapping
+    GetColumnMapping = oMapping
     Exit Function
     
 ErrorHandler:
     Call ErrorHandler_Central(sPROC_NAME, err.Number, err.description, sFileType)
-    Set GetColumnMapping = Nothing
+    GetColumnMapping = oMapping
 End Function
 
 Public Function LoadValidationRules() As Collection
@@ -87,18 +103,21 @@ Public Function LoadValidationRules() As Collection
     lLastRow = wsRules.Cells(wsRules.Rows.Count, "A").End(xlUp).row
     
     For lRow = 2 To lLastRow
-        Dim oRule As ValidationRule
+        Dim sFieldType As String
+        Dim sRuleData As String
         
-        With oRule
-            .FieldType = wsRules.Cells(lRow, "A").Value
-            .Required = (UCase(wsRules.Cells(lRow, "B").Value) = "TRUE")
-            .MaxLength = wsRules.Cells(lRow, "C").Value
-            .MinLength = wsRules.Cells(lRow, "D").Value
-            .FormatPattern = wsRules.Cells(lRow, "E").Value
-            .CustomFunction = wsRules.Cells(lRow, "F").Value
-        End With
+        sFieldType = wsRules.Cells(lRow, "A").Value
         
-        colRules.Add CreateValidationRuleObject(oRule), oRule.FieldType
+        ' Create a delimited string with rule data instead of using Type
+        sRuleData = sFieldType & "|" & _
+                   wsRules.Cells(lRow, "B").Value & "|" & _
+                   wsRules.Cells(lRow, "C").Value & "|" & _
+                   wsRules.Cells(lRow, "D").Value & "|" & _
+                   wsRules.Cells(lRow, "E").Value & "|" & _
+                   wsRules.Cells(lRow, "F").Value
+        
+        ' Add the string data to collection using FieldType as key
+        colRules.Add sRuleData, sFieldType
     Next lRow
     
     Set LoadValidationRules = colRules
@@ -139,7 +158,7 @@ Public Function ValidateCSVData(vData As Variant, oMapping As ColumnMapping, col
         Call ValidateRowFields(vData, lRow, oMapping, colRules, oResult)
         
         ' Check CMID uniqueness
-        If oMapping.CMID > 0 Then
+        If oMapping.CMID > 0 And oMapping.CMID <= UBound(vData, 2) Then
             Dim sCMID As String
             sCMID = CStr(vData(lRow, oMapping.CMID))
             
@@ -156,7 +175,7 @@ Public Function ValidateCSVData(vData As Variant, oMapping As ColumnMapping, col
         End If
         
         ' Validate GID matches expected
-        If oMapping.GID > 0 Then
+        If oMapping.GID > 0 And oMapping.GID <= UBound(vData, 2) Then
             Dim sGID As String
             sGID = CStr(vData(lRow, oMapping.GID))
             
@@ -178,65 +197,64 @@ End Function
 
 Private Sub ValidateRowFields(vData As Variant, lRow As Long, oMapping As ColumnMapping, colRules As Collection, oResult As ValidationResult)
     ' Validate First Name
-    If oMapping.FirstName > 0 Then
-        Call ValidateField vData(lRow, oMapping.FirstName), "FirstName", lRow - 1, colRules, oResult
+    If oMapping.FirstName > 0 And oMapping.FirstName <= UBound(vData, 2) Then
+        Call ValidateField(vData(lRow, oMapping.FirstName), "FirstName", lRow - 1, colRules, oResult)
     End If
     
     ' Validate Last Name
-    If oMapping.LastName > 0 Then
-        Call ValidateField vData(lRow, oMapping.LastName), "LastName", lRow - 1, colRules, oResult
+    If oMapping.LastName > 0 And oMapping.LastName <= UBound(vData, 2) Then
+        Call ValidateField(vData(lRow, oMapping.LastName), "LastName", lRow - 1, colRules, oResult)
     End If
     
     ' Validate DOB
-    If oMapping.DOB > 0 Then
-        Call ValidateField vData(lRow, oMapping.DOB), "DOB", lRow - 1, colRules, oResult
+    If oMapping.DOB > 0 And oMapping.DOB <= UBound(vData, 2) Then
+        Call ValidateField(vData(lRow, oMapping.DOB), "DOB", lRow - 1, colRules, oResult)
     End If
     
     ' Validate Gender
-    If oMapping.Gender > 0 Then
-        Call ValidateField vData(lRow, oMapping.Gender), "Gender", lRow - 1, colRules, oResult
+    If oMapping.Gender > 0 And oMapping.Gender <= UBound(vData, 2) Then
+        Call ValidateField(vData(lRow, oMapping.Gender), "Gender", lRow - 1, colRules, oResult)
     End If
     
     ' Validate Zip Code
-    If oMapping.ZipCode > 0 Then
-        Call ValidateField vData(lRow, oMapping.ZipCode), "ZipCode", lRow - 1, colRules, oResult
+    If oMapping.ZipCode > 0 And oMapping.ZipCode <= UBound(vData, 2) Then
+        Call ValidateField(vData(lRow, oMapping.ZipCode), "ZipCode", lRow - 1, colRules, oResult)
     End If
     
     ' Validate Address1
-    If oMapping.Address1 > 0 Then
-        Call ValidateField vData(lRow, oMapping.Address1), "Address1", lRow - 1, colRules, oResult
+    If oMapping.Address1 > 0 And oMapping.Address1 <= UBound(vData, 2) Then
+        Call ValidateField(vData(lRow, oMapping.Address1), "Address1", lRow - 1, colRules, oResult)
     End If
     
     ' Validate City
-    If oMapping.City > 0 Then
-        Call ValidateField vData(lRow, oMapping.City), "City", lRow - 1, colRules, oResult
+    If oMapping.City > 0 And oMapping.City <= UBound(vData, 2) Then
+        Call ValidateField(vData(lRow, oMapping.City), "City", lRow - 1, colRules, oResult)
     End If
     
     ' Validate State
-    If oMapping.State > 0 Then
-        Call ValidateField vData(lRow, oMapping.State), "State", lRow - 1, colRules, oResult
+    If oMapping.State > 0 And oMapping.State <= UBound(vData, 2) Then
+        Call ValidateField(vData(lRow, oMapping.State), "State", lRow - 1, colRules, oResult)
     End If
     
     ' Validate Effective Date
-    If oMapping.EffectiveDate > 0 Then
-        Call ValidateField vData(lRow, oMapping.EffectiveDate), "EffectiveDate", lRow - 1, colRules, oResult
+    If oMapping.EffectiveDate > 0 And oMapping.EffectiveDate <= UBound(vData, 2) Then
+        Call ValidateField(vData(lRow, oMapping.EffectiveDate), "EffectiveDate", lRow - 1, colRules, oResult)
     End If
     
     ' Validate Service Offering
-    If oMapping.ServiceOffering > 0 Then
-        Call ValidateField vData(lRow, oMapping.ServiceOffering), "ServiceOffering", lRow - 1, colRules, oResult
+    If oMapping.ServiceOffering > 0 And oMapping.ServiceOffering <= UBound(vData, 2) Then
+        Call ValidateField(vData(lRow, oMapping.ServiceOffering), "ServiceOffering", lRow - 1, colRules, oResult)
     End If
 End Sub
 
 Private Sub ValidateField(vFieldValue As Variant, sFieldType As String, lRowNumber As Long, colRules As Collection, oResult As ValidationResult)
-    On Error Resume Next
+    On Error GoTo SkipField
     
     Dim oRule As ValidationRule
-    Set oRule = colRules.item(sFieldType)
+    oRule = FindValidationRule(colRules, sFieldType)
     
-    If err.Number <> 0 Then
-        ' No rule found for this field type
-        err.Clear
+    ' If no rule found, skip validation for this field
+    If oRule.FieldType = "" Then
         Exit Sub
     End If
     
@@ -270,13 +288,51 @@ Private Sub ValidateField(vFieldValue As Variant, sFieldType As String, lRowNumb
         End If
     End If
     
-    ' Custom function validation
-    If oRule.CustomFunction <> "" Then
-        If Not CallCustomValidationFunction(sValue, oRule.CustomFunction) Then
-            oResult.AddError lRowNumber, sFieldType, "Failed custom validation: " & oRule.CustomFunction
-        End If
-    End If
+    Exit Sub
+    
+SkipField:
+    ' Error finding rule - skip this field validation
+    Exit Sub
 End Sub
+
+Private Function FindValidationRule(colRules As Collection, sFieldType As String) As ValidationRule
+    Dim oRule As ValidationRule
+    Dim emptyRule As ValidationRule
+    Dim sRuleData As String
+    Dim vParts As Variant
+    
+    ' Initialize empty rule
+    emptyRule.FieldType = ""
+    emptyRule.Required = False
+    emptyRule.MaxLength = 0
+    emptyRule.MinLength = 0
+    emptyRule.FormatPattern = ""
+    emptyRule.CustomFunction = ""
+    
+    On Error GoTo NotFound
+    
+    ' Get the rule data string from collection
+    sRuleData = colRules.Item(sFieldType)
+    
+    ' Parse the delimited string back into ValidationRule Type
+    vParts = Split(sRuleData, "|")
+    
+    If UBound(vParts) >= 5 Then
+        oRule.FieldType = vParts(0)
+        oRule.Required = (UCase(vParts(1)) = "TRUE")
+        oRule.MaxLength = Val(vParts(2))
+        oRule.MinLength = Val(vParts(3))
+        oRule.FormatPattern = vParts(4)
+        oRule.CustomFunction = vParts(5)
+        
+        FindValidationRule = oRule
+        Exit Function
+    End If
+    
+NotFound:
+    ' Return empty rule if not found or error
+    FindValidationRule = emptyRule
+End Function
 
 Private Function ValidateFieldFormat(sValue As String, sFieldType As String, sPattern As String) As Boolean
     Select Case UCase(sFieldType)

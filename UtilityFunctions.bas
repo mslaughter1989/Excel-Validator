@@ -21,11 +21,6 @@ Public Function SelectValidationFile() As String
     SelectValidationFile = sFilePath
 End Function
 
-Public Function GetFileNameFromPath(sFullPath As String) As String
-    Dim vParts As Variant
-    vParts = Split(sFullPath, "\")
-    GetFileNameFromPath = CStr(vParts(UBound(vParts)))
-End Function
 
 Public Sub ErrorHandler_Central(sProcedure As String, lErrorNum As Long, sErrorDesc As String, Optional sAdditionalInfo As String = "")
     Dim sLogEntry As String
@@ -88,16 +83,8 @@ Public Sub DisplayValidationResults(oResult As ValidationResult)
     End If
 End Sub
 
-' Helper functions for creating objects (needed for earlier Office versions)
-Public Function CreateFileInfoObject(oInfo As FileInfo) As FileInfo
-    CreateFileInfoObject = oInfo
+Public Function GetFileNameFromPath(sFullPath As String) As String
+    Dim vParts As Variant
+    vParts = Split(sFullPath, "\")
+    GetFileNameFromPath = CStr(vParts(UBound(vParts)))
 End Function
-
-Public Function CreateColumnMappingObject(oMapping As ColumnMapping) As ColumnMapping
-    CreateColumnMappingObject = oMapping
-End Function
-
-Public Function CreateValidationRuleObject(oRule As ValidationRule) As ValidationRule
-    CreateValidationRuleObject = oRule
-End Function
-

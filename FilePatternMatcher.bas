@@ -22,6 +22,13 @@ Public Function MatchFilenamePattern(sFileName As String) As FileInfo
     Set wsPatterns = ThisWorkbook.Worksheets("Parsed_SFTPfiles")
     lLastRow = wsPatterns.Cells(wsPatterns.Rows.Count, "M").End(xlUp).row
     
+    ' Initialize result as invalid
+    oFileInfo.IsValid = False
+    oFileInfo.FileName = sFileName
+    oFileInfo.FileType = ""
+    oFileInfo.GroupID = ""
+    oFileInfo.FileDate = 0
+    
     ' Loop through all patterns
     For lRow = 2 To lLastRow
         Dim sPattern As String
@@ -39,18 +46,20 @@ Public Function MatchFilenamePattern(sFileName As String) As FileInfo
             oFileInfo.FileDate = ExtractDateFromFilename(sFileName)
             oFileInfo.IsValid = True
             
-            Set MatchFilenamePattern = CreateFileInfoObject(oFileInfo)
+            ' Return the Type directly (no Set keyword needed)
+            MatchFilenamePattern = oFileInfo
             Exit Function
         End If
     Next lRow
     
-    ' No match found
-    Set MatchFilenamePattern = Nothing
+    ' No match found - return invalid FileInfo
+    MatchFilenamePattern = oFileInfo
     Exit Function
     
 ErrorHandler:
     Call ErrorHandler_Central(sPROC_NAME, err.Number, err.description)
-    Set MatchFilenamePattern = Nothing
+    oFileInfo.IsValid = False
+    MatchFilenamePattern = oFileInfo
 End Function
 
 Private Function TestFilenameAgainstPattern(sFileName As String, sPattern As String, sGroupID As String) As Boolean
