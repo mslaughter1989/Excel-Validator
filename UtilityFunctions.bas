@@ -14,7 +14,7 @@ Public Function SelectValidationFile() As String
         .AllowMultiSelect = False
         
         If .Show = -1 Then
-            sFilePath = .selectedItems(1)
+            sFilePath = .SelectedItems(1)
         End If
     End With
     
@@ -27,7 +27,7 @@ Public Sub ErrorHandler_Central(sProcedure As String, lErrorNum As Long, sErrorD
     Dim sLogPath As String
     
     ' Create detailed log entry
-    sLogEntry = format(Now, "yyyy-mm-dd hh:mm:ss") & vbTab & _
+    sLogEntry = Format(Now, "yyyy-mm-dd hh:mm:ss") & vbTab & _
                 Environ("USERNAME") & vbTab & _
                 sProcedure & vbTab & _
                 lErrorNum & vbTab & _

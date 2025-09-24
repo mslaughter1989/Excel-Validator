@@ -6,6 +6,10 @@ Public Function ReadCSVToArray(sFilePath As String) As Variant
     
     On Error GoTo ErrorHandler
     
+    ' ADD THESE DEBUG LINES HERE
+    Debug.Print "=== ReadCSVToArray Debug ==="
+    Debug.Print "File path: " & sFilePath
+    Debug.Print "File exists: " & (Dir(sFilePath) <> "")
     Dim lFileNum As Long
     Dim sFileContent As String
     Dim vLines As Variant
@@ -77,7 +81,7 @@ Public Function ReadCSVToArray(sFilePath As String) As Variant
     
 ErrorHandler:
     If lFileNum > 0 Then Close #lFileNum
-    Call ErrorHandler_Central(sPROC_NAME, err.Number, err.description, sFilePath)
+    Call ErrorHandler_Central(sPROC_NAME, Err.Number, Err.Description, sFilePath)
     ReadCSVToArray = Empty
 End Function
 

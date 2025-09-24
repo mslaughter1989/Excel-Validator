@@ -2,10 +2,10 @@ Attribute VB_Name = "FilePatternMatcher"
 Option Explicit
 
 Public Type FileInfo
-    FileName As String
+    fileName As String
     FileType As String
-    GroupID As String
-    FileDate As Date
+    groupID As String
+    fileDate As Date
     IsValid As Boolean
 End Type
 
@@ -20,16 +20,16 @@ Public Function MatchFilenamePattern(sFileName As String) As FileInfo
     On Error GoTo ErrorHandler
     
     Set wsPatterns = ThisWorkbook.Worksheets("Parsed_SFTPfiles")
-    lLastRow = wsPatterns.Cells(wsPatterns.Rows.Count, "M").End(xlUp).row
+    lLastRow = wsPatterns.Cells(wsPatterns.Rows.count, "M").End(xlUp).row
     
     ' Initialize result as invalid
     oFileInfo.IsValid = False
-    oFileInfo.FileName = sFileName
+    oFileInfo.fileName = sFileName
     oFileInfo.FileType = ""
-    oFileInfo.GroupID = ""
-    oFileInfo.FileDate = 0
+    oFileInfo.groupID = ""
+    oFileInfo.fileDate = 0
     
-    ' Loop through all patterns
+    ' Loop through all patterns - SINGLE LOOP ONLY
     For lRow = 2 To lLastRow
         Dim sPattern As String
         Dim sGroupID As String
@@ -40,13 +40,18 @@ Public Function MatchFilenamePattern(sFileName As String) As FileInfo
         sFileType = wsPatterns.Cells(lRow, "O").Value ' Column O
         
         If TestFilenameAgainstPattern(sFileName, sPattern, sGroupID) Then
-            oFileInfo.FileName = sFileName
+            ' Add debug output to see what matched
+            Debug.Print "MATCH FOUND for: " & sFileName
+            Debug.Print "  Matched Pattern (Row " & lRow & "): " & sPattern
+            Debug.Print "  FileType: " & sFileType
+            Debug.Print "  GroupID: " & sGroupID
+            
+            oFileInfo.fileName = sFileName
             oFileInfo.FileType = sFileType
-            oFileInfo.GroupID = sGroupID
-            oFileInfo.FileDate = ExtractDateFromFilename(sFileName)
+            oFileInfo.groupID = sGroupID
+            oFileInfo.fileDate = ExtractDateFromFilename(sFileName)
             oFileInfo.IsValid = True
             
-            ' Return the Type directly (no Set keyword needed)
             MatchFilenamePattern = oFileInfo
             Exit Function
         End If
@@ -57,7 +62,7 @@ Public Function MatchFilenamePattern(sFileName As String) As FileInfo
     Exit Function
     
 ErrorHandler:
-    Call ErrorHandler_Central(sPROC_NAME, err.Number, err.description)
+    Call ErrorHandler_Central(sPROC_NAME, Err.Number, Err.Description)
     oFileInfo.IsValid = False
     MatchFilenamePattern = oFileInfo
 End Function
@@ -76,29 +81,41 @@ Private Function TestFilenameAgainstPattern(sFileName As String, sPattern As Str
         .Global = False
     End With
     
-    TestFilenameAgainstPattern = oRegex.Test(sFileName)
+    Dim bResult As Boolean
+    bResult = oRegex.Test(sFileName)
+    
+    TestFilenameAgainstPattern = bResult
 End Function
-
 Private Function ConvertPatternToRegex(sPattern As String, sGroupID As String) As String
     Dim sResult As String
     sResult = sPattern
     
-    ' Replace wildcards with regex equivalents
-    sResult = Replace(sResult, "*", ".*")
-    sResult = Replace(sResult, "?", ".")
-    
-    ' Replace date patterns
-    sResult = Replace(sResult, "mmddyyyy", "(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(\d{4})")
-    sResult = Replace(sResult, "ddmmyyyy", "(0[1-9]|[12]\d|3[01])(0[1-9]|1[0-2])(\d{4})")
-    sResult = Replace(sResult, "yyyymmdd", "(\d{4})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])")
-    
-    ' Replace GroupID placeholder
-    sResult = Replace(sResult, "{GroupID}", sGroupID)
-    
-    ' Escape special regex characters
+    ' First escape special regex characters (but NOT backslash)
     sResult = Replace(sResult, ".", "\.")
+    sResult = Replace(sResult, "+", "\+")
+    sResult = Replace(sResult, "[", "\[")
+    sResult = Replace(sResult, "]", "\]")
     sResult = Replace(sResult, "(", "\(")
     sResult = Replace(sResult, ")", "\)")
+    sResult = Replace(sResult, "^", "\^")
+    sResult = Replace(sResult, "$", "\$")
+    
+    ' Replace date patterns with simple digit matching
+    ' Using \d{8} is simpler and avoids the complex date validation
+    sResult = Replace(sResult, "mmddyyyy", "\d{8}")
+    sResult = Replace(sResult, "ddmmyyyy", "\d{8}")
+    sResult = Replace(sResult, "yyyymmdd", "\d{8}")
+    sResult = Replace(sResult, "mmddyy", "\d{6}")
+    
+    ' Replace GroupID placeholder
+    If sGroupID <> "" Then
+        sResult = Replace(sResult, "{GroupID}", sGroupID)
+        sResult = Replace(sResult, "[Adjusted groupID]", sGroupID)
+    End If
+    
+    ' NOW replace wildcards (AFTER everything else)
+    sResult = Replace(sResult, "*", ".*")
+    sResult = Replace(sResult, "?", ".")
     
     ' Add anchors
     ConvertPatternToRegex = "^" & sResult & "$"
@@ -117,7 +134,7 @@ Public Function ExtractDateFromFilename(sFileName As String) As Date
     ' Pattern 1: MMDDYYYY
     oRegex.pattern = "(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])(\d{4})"
     Set oMatches = oRegex.Execute(sFileName)
-    If oMatches.Count > 0 Then
+    If oMatches.count > 0 Then
         Dim sMonth As String, sDay As String, sYear As String
         sMonth = oMatches(0).SubMatches(0)
         sDay = oMatches(0).SubMatches(1)
@@ -125,7 +142,7 @@ Public Function ExtractDateFromFilename(sFileName As String) As Date
         
         On Error Resume Next
         ExtractDateFromFilename = CDate(sMonth & "/" & sDay & "/" & sYear)
-        If err.Number <> 0 Then ExtractDateFromFilename = 0
+        If Err.Number <> 0 Then ExtractDateFromFilename = 0
         On Error GoTo 0
         Exit Function
     End If
@@ -133,12 +150,12 @@ Public Function ExtractDateFromFilename(sFileName As String) As Date
     ' Pattern 2: YYYY-MM-DD
     oRegex.pattern = "(\d{4})[-.]([01]\d)[-.]([0-3]\d)"
     Set oMatches = oRegex.Execute(sFileName)
-    If oMatches.Count > 0 Then
+    If oMatches.count > 0 Then
         On Error Resume Next
         ExtractDateFromFilename = CDate(oMatches(0).SubMatches(1) & "/" & _
                                       oMatches(0).SubMatches(2) & "/" & _
                                       oMatches(0).SubMatches(0))
-        If err.Number <> 0 Then ExtractDateFromFilename = 0
+        If Err.Number <> 0 Then ExtractDateFromFilename = 0
         On Error GoTo 0
         Exit Function
     End If

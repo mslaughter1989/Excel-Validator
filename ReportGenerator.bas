@@ -11,7 +11,7 @@ Public Function GenerateValidationReport(oResult As ValidationResult, oFileInfo 
     
     ' Create report filename
     sReportPath = Environ("USERPROFILE") & "\Downloads\ValidationReport_" & _
-                  format(Now, "yyyymmdd_hhnnss") & ".txt"
+                  Format(Now, "yyyymmdd_hhnnss") & ".txt"
     
     ' Build report content
     sReportContent = BuildReportContent(oResult, oFileInfo, sSourceFile)
@@ -28,7 +28,7 @@ Public Function GenerateValidationReport(oResult As ValidationResult, oFileInfo 
     
 ErrorHandler:
     If lFileNum > 0 Then Close #lFileNum
-    Call ErrorHandler_Central(sPROC_NAME, err.Number, err.description)
+    Call ErrorHandler_Central(sPROC_NAME, Err.Number, Err.Description)
     GenerateValidationReport = ""
 End Function
 
@@ -41,11 +41,11 @@ Private Function BuildReportContent(oResult As ValidationResult, oFileInfo As Fi
     ' File Information
     sContent = sContent & "FILE INFORMATION:" & vbCrLf
     sContent = sContent & "Source File: " & sSourceFile & vbCrLf
-    sContent = sContent & "File Name: " & oFileInfo.FileName & vbCrLf
+    sContent = sContent & "File Name: " & oFileInfo.fileName & vbCrLf
     sContent = sContent & "File Type: " & oFileInfo.FileType & vbCrLf
-    sContent = sContent & "Group ID: " & oFileInfo.GroupID & vbCrLf
-    sContent = sContent & "File Date: " & format(oFileInfo.FileDate, "MM/DD/YYYY") & vbCrLf
-    sContent = sContent & "Validation Date: " & format(Now, "MM/DD/YYYY HH:NN:SS") & vbCrLf & vbCrLf
+    sContent = sContent & "Group ID: " & oFileInfo.groupID & vbCrLf
+    sContent = sContent & "File Date: " & Format(oFileInfo.fileDate, "MM/DD/YYYY") & vbCrLf
+    sContent = sContent & "Validation Date: " & Format(Now, "MM/DD/YYYY HH:NN:SS") & vbCrLf & vbCrLf
     
     ' Summary
     sContent = sContent & "VALIDATION SUMMARY:" & vbCrLf
@@ -60,7 +60,7 @@ Private Function BuildReportContent(oResult As ValidationResult, oFileInfo As Fi
         sContent = sContent & String(20, "-") & vbCrLf
         
         Dim i As Long
-        For i = 1 To oResult.Errors.Count
+        For i = 1 To oResult.Errors.count
             Dim oError As ValidationError
             Set oError = oResult.Errors.Item(i)
             
@@ -73,7 +73,7 @@ Private Function BuildReportContent(oResult As ValidationResult, oFileInfo As Fi
         sContent = sContent & vbCrLf & "WARNINGS:" & vbCrLf
         sContent = sContent & String(10, "-") & vbCrLf
         
-        For i = 1 To oResult.Warnings.Count
+        For i = 1 To oResult.Warnings.count
             Dim oWarning As ValidationError
             Set oWarning = oResult.Warnings.Item(i)
             
